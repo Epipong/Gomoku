@@ -24,6 +24,8 @@ local PLAYER_ONE = 0
 local PLAYER_TWO = 1
 local NOT_VISITED = 0
 local VISITED = 1
+local CapturedPiece = {}
+local callback
 
 currentPlayer = PLAYER_ONE
 
@@ -47,7 +49,109 @@ local function didHeWin(y, x, value)
 	return false
 end
 
+local function mergeRight(x, y, GomokuField_)
+
+	if (GomokuField[y][x] == EMPTY) then
+		return true
+	end
+
+	oppositeColor = GomokuField[y][x] == WHITE and BLACK or WHITE
+	originalColor = GomokuField[y][x]
+
+	while x ~= 0 and GomokuField[y][x - 1] == originalColor do
+		x = x - 1
+	end
+
+	if x ~= 0 and GomokuField[y][x - 1] == oppositeColor then
+		while x ~= 18 and (GomokuField[y][x + 1] ~= EMPTY and GomokuField[y][x + 1] ~= oppositeColor) do
+			x = x + 1
+		end
+		if x ~= 18 and GomokuField[y][x + 1] == oppositeColor then
+			GomokuField_[y][x] = EMPTY
+			while GomokuField[y][x] == originalColor do
+				GomokuField_[y][x] = EMPTY
+				x = x - 1
+			end
+		end
+	end
+	return true
+
+end
+
+local function mergeUp(x, y, GomokuField_)
+
+	if (GomokuField[y][x] == EMPTY) then
+		return true
+	end
+
+	oppositeColor = GomokuField[y][x] == WHITE and BLACK or WHITE
+	originalColor = GomokuField[y][x]
+
+	while y ~= 0 and GomokuField[y - 1][x] == originalColor do
+		y = y - 1
+	end
+
+	if y ~= 0 and GomokuField[y - 1][x] == oppositeColor then
+		while y ~= 18 and (GomokuField[y + 1][x] ~= EMPTY and GomokuField[y + 1][x] ~= oppositeColor) do
+			y = y + 1
+		end
+		if y ~= 18 and GomokuField[y + 1][x] == oppositeColor then
+			GomokuField_[y][x] = EMPTY
+			while GomokuField[y][x] == originalColor do
+				GomokuField_[y][x] = EMPTY
+				y = y - 1
+			end
+		end
+	end
+	return true
+end
+
+local function mergeGomoku()
+
+	oppositeColor = currentPlayer == PLAYER_ONE and BLACK or WHITE
+	originalColor = currentPlayer == PLAYER_ONE and WHITE or BLACK
+	temporyGomokuField = {}
+
+	for y = 0, 18 do
+		temporyGomokuField[y] = {}
+		for x = 0, 18 do
+			temporyGomokuField[y][x] = GomokuField[y][x]
+		end
+	end
+
+	for y = 0, 18 do
+		for x = 0, 18 do
+			mergeUp(x, y, temporyGomokuField)
+			mergeRight(x, y, temporyGomokuField)
+		end
+	end
+
+	for y = 0, 18 do
+		for x = 0, 18 do
+			if GomokuField[y][x] ~= temporyGomokuField[y][x] then
+				Playground[y][x]:removeSelf()
+				Playground[y][x] = nil
+				Playground[y][x] = display.newImageRect("empty.png", 13, 13)
+				Playground[y][x].anchorY = 0
+				Playground[y][x].anchorX = 0
+				
+				Playground[y][x].real_x = x
+				Playground[y][x].real_y = y			
+
+				Playground[y][x].x = 116 + (x * 13)
+				Playground[y][x].y = 37 +  (y * 13)	
+
+				Playground[y][x]:addEventListener("tap", callback)
+
+			end
+		end
+	end
+
+	GomokuField = temporyGomokuField
+end
+
 local function haveWin()
+	
 	for var_y = 0, 18 do
 
 		for var_x = 0, 18 do
@@ -75,6 +179,8 @@ local function playGomoku(event)
 	x = event.target.x
 	y = event.target.y
 
+	CapturedPiece[PLAYER_ONE] = 0
+	CapturedPiece[PLAYER_TWO] = 0
 	local newImage
 
 	if currentPlayer == PLAYER_ONE then
@@ -87,19 +193,24 @@ local function playGomoku(event)
 
 	end
 
+	newImage.real_x = event.target.real_x
+	newImage.real_y = event.target.real_y
+
 	newImage.anchorX = 0
 	newImage.anchorY = 0
 	newImage.x = x
 	newImage.y = y
 
+	mergeGomoku()
 	if haveWin() == true then
 		GameOver()
 		return true
 	end
+
 	currentPlayer = currentPlayer == PLAYER_ONE and PLAYER_TWO or PLAYER_ONE
 
 	event.target:removeSelf()
-
+	Playground[newImage.real_y][newImage.real_x] = newImage
 	return true
 end
 
@@ -112,6 +223,7 @@ function scene:create( event )
 
 	local sceneGroup = self.view
 
+	callback = playGomoku
 	-- create a grey rectangle as the backdrop
 	local background = display.newImageRect( "backgroundGomoku.png",screenW, screenH )
 	background.anchorX = 0
@@ -135,7 +247,7 @@ function scene:create( event )
 			Playground[var_y][var_x].x = 116 + (var_x * 13)
 			Playground[var_y][var_x].y = 37 +  (var_y * 13)	
 
-			Playground[var_y][var_x]:addEventListener("tap", playGomoku)
+			Playground[var_y][var_x]:addEventListener("tap", callback)
 
 			GomokuField[var_y][var_x] = EMPTY
 
