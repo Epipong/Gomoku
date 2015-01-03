@@ -6,6 +6,8 @@
 
 local composer = require( "composer" )
 local scene = composer.newScene()
+local musicMenu = audio.loadStream("menu.mp3")
+local menuChannel = audio.play(musicMenu, { channel=1, loops=-1, fadein=200})
 
 -- include Corona's "widget" library
 local widget = require "widget"
@@ -19,7 +21,8 @@ local playBtn
 local function onPlayBtnRelease()
 	
 	-- go to level1.lua scene
-	composer.gotoScene( "level1", "fade", 500 )
+	composer.gotoScene( "level1", "fade", 2000 )
+	audio.stop(menuChannel)
 	
 	return true	-- indicates successful touch
 end
@@ -37,7 +40,7 @@ function scene:create( event )
 	background.anchorX = 0
 	background.anchorY = 0
 	background.x, background.y = 0, 0
-	
+
 	-- create/position logo/title image on upper-half of the screen
 	local titleLogo = display.newImageRect( "logo.png", 264, 42 )
 	titleLogo.x = display.contentWidth * 0.5

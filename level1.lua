@@ -26,6 +26,10 @@ local NOT_VISITED = 0
 local VISITED = 1
 local CapturedPiece = {}
 local callback
+local musicMenu = audio.loadStream("game.mp3")
+local menuChannel
+
+
 
 currentPlayer = PLAYER_ONE
 
@@ -98,6 +102,9 @@ local function mergeUp(x, y, GomokuField_)
 		if y ~= 18 and GomokuField[y + 1][x] == oppositeColor then
 			GomokuField_[y][x] = EMPTY
 			while GomokuField[y][x] == originalColor do
+				if GomokuField_[y][x] == EMPTY then
+					CapturedPiece[originalColor - 1] = CapturedPiece[originalColor - 1] + 1
+				end
 				GomokuField_[y][x] = EMPTY
 				y = y - 1
 			end
@@ -129,6 +136,7 @@ local function mergeGomoku()
 	for y = 0, 18 do
 		for x = 0, 18 do
 			if GomokuField[y][x] ~= temporyGomokuField[y][x] then
+				GomokuField[y][x] = temporyGomokuField[y][x]
 				Playground[y][x]:removeSelf()
 				Playground[y][x] = nil
 				Playground[y][x] = display.newImageRect("empty.png", 13, 13)
@@ -146,8 +154,6 @@ local function mergeGomoku()
 			end
 		end
 	end
-
-	GomokuField = temporyGomokuField
 end
 
 local function haveWin()
@@ -166,6 +172,102 @@ local function haveWin()
 	return false	
 end
 
+local function checkTwoThreeUp(y, x, color)
+	local _y = y - 4
+
+	while _y ~= y + 1 do
+		local nbPiece = 0
+		local _yLimit = _y + 5
+		local _yBegin = _y
+
+		while _yBegin ~= _yLimit do
+
+			if _yBegin < 0 then
+				break
+			end
+			if _yBegin > 18 then
+				break
+			end
+			if GomokuField[_yBegin][x] == color then
+				nbPiece = nbPiece + 1
+			end
+
+			if GomokuField[_yBegin][x] ~= EMPTY and GomokuField[_yBegin][x] ~= color then
+				nbPiece = 0
+				break
+			end
+
+			_yBegin = _yBegin + 1
+		end
+
+		if nbPiece >= 3 then
+			return true
+		end
+
+		_y = _y + 1
+	end
+	return false
+end
+
+local function checkTwoThreeLeft(y, x, color)
+	local _x = x - 4
+
+	while _x ~= x + 1 do
+		local nbPiece = 0
+		local _xLimit = _x + 5
+		local _xBegin = _x
+
+		while _xBegin ~= _xLimit do
+
+			if _xBegin < 0 then
+				break
+			end
+			if _xBegin > 18 then
+				break
+			end
+			if GomokuField[y][_xBegin] == color then
+				nbPiece = nbPiece + 1
+			end
+
+			if GomokuField[y][_xBegin] ~= EMPTY and GomokuField[y][_xBegin] ~= color then
+				nbPiece = 0
+				break
+			end
+
+			_xBegin = _xBegin + 1
+		end
+
+		if nbPiece >= 3 then
+			return true
+		end
+
+		_x = _x + 1
+	end
+	return false
+end
+
+
+local function  itNotPossible(y, x, color)
+
+	local _y = y
+	local _x = x
+	local nbPaire = 0
+
+	if checkTwoThreeUp(_y, _x, color) == true then
+		nbPaire = nbPaire + 1
+	end
+
+	if checkTwoThreeLeft(_y, _x, color) == true then
+		nbPaire = nbPaire + 1
+	end
+
+	if nbPaire >= 2 then
+		return true
+	end
+
+	return false
+end
+
 local function GameOver()
 	local background = display.newImageRect( "backgroundGomoku.png",screenW, screenH )
 	background.anchorX = 0
@@ -179,18 +281,24 @@ local function playGomoku(event)
 	x = event.target.x
 	y = event.target.y
 
-	CapturedPiece[PLAYER_ONE] = 0
-	CapturedPiece[PLAYER_TWO] = 0
 	local newImage
+	local colorActuel
 
 	if currentPlayer == PLAYER_ONE then
 		newImage = display.newImageRect("white.png", 13, 13)
 		GomokuField[event.target.real_y][event.target.real_x] = WHITE
-
+		colorActuel = WHITE
 	elseif currentPlayer == PLAYER_TWO then
 		newImage = display.newImageRect("black.png", 13, 13)
 		GomokuField[event.target.real_y][event.target.real_x] = BLACK
+		colorActuel = BLACK
+	end
 
+	if itNotPossible(event.target.real_y, event.target.real_x, colorActuel) == true then
+		newImage:removeSelf()
+		GomokuField[event.target.real_y][event.target.real_x] = EMPTY
+
+		return false
 	end
 
 	newImage.real_x = event.target.real_x
@@ -201,7 +309,20 @@ local function playGomoku(event)
 	newImage.x = x
 	newImage.y = y
 
+	event.target:removeSelf()
+	Playground[newImage.real_y][newImage.real_x] = newImage
+
 	mergeGomoku()
+	if CapturedPiece[PLAYER_ONE] >= 10 then
+		GameOver()
+		return true
+	end
+	if CapturedPiece[PLAYER_TWO] >= 10 then
+		GameOver()
+		return true
+	end
+
+
 	if haveWin() == true then
 		GameOver()
 		return true
@@ -209,12 +330,12 @@ local function playGomoku(event)
 
 	currentPlayer = currentPlayer == PLAYER_ONE and PLAYER_TWO or PLAYER_ONE
 
-	event.target:removeSelf()
-	Playground[newImage.real_y][newImage.real_x] = newImage
 	return true
 end
 
 function scene:create( event )
+
+	menuChannel = audio.play(musicMenu, { channel=2, loops=-1, fadein=200})
 
 	-- Called when the scene's view does not exist.
 	-- 
@@ -231,7 +352,10 @@ function scene:create( event )
 	background.x, background.y = 0
 
 	sceneGroup:insert( background )
-	
+	CapturedPiece[PLAYER_ONE] = 0
+	CapturedPiece[PLAYER_TWO] = 0
+
+
 	for var_y = 0, 18 do
 		Playground[var_y] = {}
 		GomokuField[var_y] = {}
