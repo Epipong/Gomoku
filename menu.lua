@@ -21,7 +21,7 @@ local playBtn
 local function onPlayBtnRelease()
 	
 	-- go to level1.lua scene
-	composer.gotoScene( "level1", "fade", 2000 )
+	composer.gotoScene( "level1", "fade", 500 )
 	audio.stop(menuChannel)
 	
 	return true	-- indicates successful touch

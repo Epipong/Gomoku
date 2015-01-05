@@ -66,11 +66,12 @@ local function mergeRight(x, y, GomokuField_)
 		x = x - 1
 	end
 
-	if x ~= 0 and GomokuField[y][x - 1] == oppositeColor then
+	if x ~= 0 and GomokuField[y][x - 1] == oppositeColor and GomokuField[y][x] == originalColor and GomokuField[y][x + 1] == originalColor then
 		while x ~= 18 and (GomokuField[y][x + 1] ~= EMPTY and GomokuField[y][x + 1] ~= oppositeColor) do
 			x = x + 1
 		end
 		if x ~= 18 and GomokuField[y][x + 1] == oppositeColor then
+
 			GomokuField_[y][x] = EMPTY
 			while GomokuField[y][x] == originalColor do
 				GomokuField_[y][x] = EMPTY
@@ -95,11 +96,11 @@ local function mergeUp(x, y, GomokuField_)
 		y = y - 1
 	end
 
-	if y ~= 0 and GomokuField[y - 1][x] == oppositeColor then
+	if y ~= 0 and GomokuField[y - 1][x] == oppositeColor and GomokuField[y][x] == originalColor and GomokuField[y + 1][x] == originalColor then
 		while y ~= 18 and (GomokuField[y + 1][x] ~= EMPTY and GomokuField[y + 1][x] ~= oppositeColor) do
 			y = y + 1
 		end
-		if y ~= 18 and GomokuField[y + 1][x] == oppositeColor then
+		if y <= 17 and GomokuField[y + 1][x] == oppositeColor  then
 			GomokuField_[y][x] = EMPTY
 			while GomokuField[y][x] == originalColor do
 				if GomokuField_[y][x] == EMPTY then
@@ -112,6 +113,75 @@ local function mergeUp(x, y, GomokuField_)
 	end
 	return true
 end
+
+local function mergeDiagonalUp(x, y, GomokuField_)
+
+	if (GomokuField[y][x] == EMPTY) then
+		return true
+	end
+
+	oppositeColor = GomokuField[y][x] == WHITE and BLACK or WHITE
+	originalColor = GomokuField[y][x]
+
+	while y ~= 0 and x ~= 0 and GomokuField[y + 1][x - 1] == originalColor do
+		y = y - 1
+		x = x - 1
+	end
+
+	if y ~= 0 and x ~= 0 and GomokuField[y - 1][x - 1] == oppositeColor and GomokuField[y][x] == originalColor and GomokuField[y + 1][x + 1] == originalColor then
+		while y ~= 18 and (GomokuField[y + 1][x + 1] ~= EMPTY and GomokuField[y + 1][x + 1] ~= oppositeColor) do
+			y = y + 1
+			x = x + 1
+		end
+		if y <= 17 and x <= 17 and GomokuField[y + 1][x + 1] == oppositeColor  then
+			GomokuField_[y][x] = EMPTY
+			while GomokuField[y][x] == originalColor do
+				if GomokuField_[y][x] == EMPTY then
+					CapturedPiece[originalColor - 1] = CapturedPiece[originalColor - 1] + 1
+				end
+				GomokuField_[y][x] = EMPTY
+				y = y - 1
+				x = x - 1
+			end
+		end
+	end
+	return true
+end
+
+local function mergeDiagonalDown(x, y, GomokuField_)
+
+	if (GomokuField[y][x] == EMPTY) then
+		return true
+	end
+
+	oppositeColor = GomokuField[y][x] == WHITE and BLACK or WHITE
+	originalColor = GomokuField[y][x]
+
+	while y ~= 18 and x ~= 0 and GomokuField[y + 1][x - 1] == originalColor do
+		y = y + 1
+		x = x - 1
+	end
+
+	if y ~= 18 and x ~= 0 and GomokuField[y + 1][x - 1] == oppositeColor and GomokuField[y][x] == originalColor and GomokuField[y - 1][x + 1] == originalColor then
+		while y ~= 0 and x ~= 18 and (GomokuField[y - 1][x + 1] ~= EMPTY and GomokuField[y - 1][x + 1] ~= oppositeColor) do
+			y = y - 1
+			x = x + 1
+		end
+		if y ~= 0 and x <= 17 and GomokuField[y - 1][x + 1] == oppositeColor  then
+			GomokuField_[y][x] = EMPTY
+			while GomokuField[y][x] == originalColor do
+				if GomokuField_[y][x] == EMPTY then
+					CapturedPiece[originalColor - 1] = CapturedPiece[originalColor - 1] + 1
+				end
+				GomokuField_[y][x] = EMPTY
+				y = y + 1
+				x = x - 1
+			end
+		end
+	end
+	return true
+end
+
 
 local function mergeGomoku()
 
@@ -127,9 +197,12 @@ local function mergeGomoku()
 	end
 
 	for y = 0, 18 do
+
 		for x = 0, 18 do
 			mergeUp(x, y, temporyGomokuField)
 			mergeRight(x, y, temporyGomokuField)
+			mergeDiagonalUp(x, y, temporyGomokuField)
+			mergeDiagonalDown(x, y, temporyGomokuField)
 		end
 	end
 
@@ -150,7 +223,7 @@ local function mergeGomoku()
 				Playground[y][x].y = 37 +  (y * 13)	
 
 				Playground[y][x]:addEventListener("tap", callback)
-
+				
 			end
 		end
 	end
@@ -269,11 +342,14 @@ local function  itNotPossible(y, x, color)
 end
 
 local function GameOver()
+	local sceneGroup = scene.view
+
 	local background = display.newImageRect( "backgroundGomoku.png",screenW, screenH )
 	background.anchorX = 0
 	background.anchorY = 0
 	background.x, background.y = 0
 
+	sceneGroup:insert(background)
 end
 
 local function playGomoku(event)
@@ -335,7 +411,7 @@ end
 
 function scene:create( event )
 
-	menuChannel = audio.play(musicMenu, { channel=2, loops=-1, fadein=200})
+	--menuChannel = audio.play(musicMenu, { channel=2, loops=-1, fadein=200})
 
 	-- Called when the scene's view does not exist.
 	-- 
